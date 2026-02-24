@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="generator" content="Observable Framework v1.13.3">
+<title>Movie Song Trends</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&amp;display=swap" crossorigin>
+<link rel="preload" as="style" href="./_observablehq/theme-air,near-midnight.dcdbf18e.css">
+<link rel="preload" as="style" href="./_observablehq/stdlib/inputs.ea9fd553.css">
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&amp;display=swap" crossorigin>
+<link rel="stylesheet" type="text/css" href="./_observablehq/theme-air,near-midnight.dcdbf18e.css">
+<link rel="stylesheet" type="text/css" href="./_observablehq/stdlib/inputs.ea9fd553.css">
+<link rel="modulepreload" href="./_observablehq/client.0d9d15e7.js">
+<link rel="modulepreload" href="./_observablehq/runtime.e080113b.js">
+<link rel="modulepreload" href="./_observablehq/stdlib.73a8ec5a.js">
+<link rel="modulepreload" href="./_observablehq/stdlib/inputs.4ef1d259.js">
+<link rel="modulepreload" href="./_npm/@observablehq/plot@0.6.17/7c43807f.js">
+<link rel="modulepreload" href="./_npm/htl@0.3.1/72f4716c.js">
+<link rel="modulepreload" href="./_npm/isoformat@0.2.1/18cbf477.js">
+<link rel="modulepreload" href="./_npm/d3@7.9.0/e324157d.js">
+<link rel="modulepreload" href="./_npm/interval-tree-1d@1.0.4/53fe8176.js">
+<link rel="modulepreload" href="./_npm/d3-array@3.2.4/e93ca09f.js">
+<link rel="modulepreload" href="./_npm/d3-axis@3.0.0/0f2de24d.js">
+<link rel="modulepreload" href="./_npm/d3-brush@3.0.0/65eb105b.js">
+<link rel="modulepreload" href="./_npm/d3-chord@3.0.1/7ef8fb2e.js">
+<link rel="modulepreload" href="./_npm/d3-color@3.1.0/aeb57b94.js">
+<link rel="modulepreload" href="./_npm/d3-contour@4.0.2/1d2aed74.js">
+<link rel="modulepreload" href="./_npm/d3-delaunay@6.0.4/5ced1d52.js">
+<link rel="modulepreload" href="./_npm/d3-dispatch@3.0.1/9ba9c7f3.js">
+<link rel="modulepreload" href="./_npm/d3-drag@3.0.0/4202580c.js">
+<link rel="modulepreload" href="./_npm/d3-dsv@3.0.1/9cffc2bd.js">
+<link rel="modulepreload" href="./_npm/d3-ease@3.0.1/cdd7e898.js">
+<link rel="modulepreload" href="./_npm/d3-fetch@3.0.1/b4e2ad9a.js">
+<link rel="modulepreload" href="./_npm/d3-force@3.0.0/5e804d15.js">
+<link rel="modulepreload" href="./_npm/d3-format@3.1.2/3785bf2d.js">
+<link rel="modulepreload" href="./_npm/d3-geo@3.1.1/40599fb3.js">
+<link rel="modulepreload" href="./_npm/d3-hierarchy@3.1.2/e49e792c.js">
+<link rel="modulepreload" href="./_npm/d3-interpolate@3.0.1/8d1e5425.js">
+<link rel="modulepreload" href="./_npm/d3-path@3.1.0/20d3f133.js">
+<link rel="modulepreload" href="./_npm/d3-polygon@3.0.1/7553081f.js">
+<link rel="modulepreload" href="./_npm/d3-quadtree@3.0.1/0dfd751c.js">
+<link rel="modulepreload" href="./_npm/d3-random@3.0.1/3c90ee06.js">
+<link rel="modulepreload" href="./_npm/d3-scale@4.0.2/720b7f0a.js">
+<link rel="modulepreload" href="./_npm/d3-scale-chromatic@3.1.0/ba24c2e7.js">
+<link rel="modulepreload" href="./_npm/d3-selection@3.0.0/4d94e5b7.js">
+<link rel="modulepreload" href="./_npm/d3-shape@3.2.0/6d3a6726.js">
+<link rel="modulepreload" href="./_npm/d3-time@3.1.0/9f03c579.js">
+<link rel="modulepreload" href="./_npm/d3-time-format@4.1.0/07c9626f.js">
+<link rel="modulepreload" href="./_npm/d3-timer@3.0.1/b58a267d.js">
+<link rel="modulepreload" href="./_npm/d3-transition@3.0.1/004da2ac.js">
+<link rel="modulepreload" href="./_npm/d3-zoom@3.0.0/b5786b3f.js">
+<link rel="modulepreload" href="./_npm/binary-search-bounds@2.0.5/cbf6ba23.js">
+<link rel="modulepreload" href="./_npm/internmap@2.0.3/e08981d9.js">
+<link rel="modulepreload" href="./_npm/delaunator@5.0.1/02d43215.js">
+<link rel="modulepreload" href="./_npm/robust-predicates@3.0.2/aa00730b.js">
+<script type="module">
+
+import {define} from "./_observablehq/client.0d9d15e7.js";
+import {registerFile} from "./_observablehq/stdlib.73a8ec5a.js";
+
+registerFile("./data/movie-song-trends_dataset.json", {"name":"./data/movie-song-trends_dataset.json","mimeType":"application/json","path":"./_file/data/movie-song-trends_dataset.f2857ef0.json","lastModified":1771944941026,"size":3350920});
+
+define({id: "c1580104", inputs: ["FileAttachment"], outputs: ["raw_dataset"], body: async (FileAttachment) => {
+const raw_dataset = await FileAttachment("./data/movie-song-trends_dataset.json").json();
+return {raw_dataset};
+}});
+
+define({id: "3a3c9b2c", inputs: ["raw_dataset","view","Inputs"], outputs: ["movieTitles","selectedMovieTitle"], body: (raw_dataset,view,Inputs) => {
+const movieTitles = [...new Set(raw_dataset.map(d => d.movie_data.title))];
+const selectedMovieTitle = view(Inputs.select(movieTitles, { label: "Select a movie" }));
+return {movieTitles,selectedMovieTitle};
+}});
+
+define({id: "01d997a9", inputs: ["raw_dataset","selectedMovieTitle"], outputs: ["selectedEntry","rawMovieScores","rawSongScores","maxMovie","maxSong","formattedData"], body: (raw_dataset,selectedMovieTitle) => {
+const selectedEntry = raw_dataset.find(d => d.movie_data.title === selectedMovieTitle);
+
+const rawMovieScores = selectedEntry.trends.map(t => t.scores.movie === "<1" ? 0.5 : +t.scores.movie);
+const rawSongScores  = selectedEntry.trends.map(t => t.scores.song  === "<1" ? 0.5 : +t.scores.song);
+
+const maxMovie = Math.max(...rawMovieScores);
+const maxSong  = Math.max(...rawSongScores);
+
+const formattedData = selectedEntry.trends.map((t, i) => ({
+  date:             new Date(t.date + "-01"),
+  movieRelativePop: maxMovie > 0 ? (rawMovieScores[i] / maxMovie) * 100 : 0,
+  songRelativePop:  maxSong  > 0 ? (rawSongScores[i]  / maxSong)  * 100 : 0,
+  rawMovieScore:    rawMovieScores[i],
+  rawSongScore:     rawSongScores[i]
+}));
+return {selectedEntry,rawMovieScores,rawSongScores,maxMovie,maxSong,formattedData};
+}});
+
+define({id: "fe7fc65c", inputs: ["Plot","selectedMovieTitle","width","formattedData","display"], body: async (Plot,selectedMovieTitle,width,formattedData,display) => {
+display(await(
+Plot.plot({
+  title: `Normalized Comparative Analysis: ${selectedMovieTitle}`,
+  subtitle: "Movie vs. Soundtrack Peak Intensity (0-100% Scale)",
+  width: width,
+  height: 500,
+  marginLeft: 50,
+  y: {
+    label: "Relative Popularity (%)",
+    domain: [0, 100],
+    grid: true
+  },
+  x: {
+    label: "Timeline",
+    grid: true
+  },
+  marks: [
+    Plot.differenceY(formattedData, {
+      x: "date",
+      y1: "movieRelativePop",
+      y2: "songRelativePop",
+      positiveFill: "rgba(44, 160, 44, 0.4)",
+      negativeFill: "rgba(255, 127, 14, 0.4)"
+    }),
+    Plot.lineY(formattedData, { x: "date", y: "movieRelativePop", stroke: "#2ca02c", strokeWidth: 2 }),
+    Plot.lineY(formattedData, { x: "date", y: "songRelativePop",  stroke: "#ff7f0e", strokeWidth: 2 }),
+    Plot.ruleX(formattedData, Plot.pointerX({
+      x: "date",
+      stroke: "gray",
+      strokeWidth: 1,
+      strokeDasharray: "4,4",
+      channels: {
+        "Movie Rel. Pop. (%)": d => Math.round(d.movieRelativePop),
+        "Raw Movie Score":     "rawMovieScore",
+        "Song Rel. Pop. (%)":  d => Math.round(d.songRelativePop),
+        "Raw Song Score":      "rawSongScore"
+      },
+      tip: true
+    })),
+    Plot.ruleY([0])
+  ]
+})
+))
+}});
+
+define({id: "a3a3f2f0", inputs: ["view","Inputs"], outputs: ["allTiers","selectedTiers"], body: (view,Inputs) => {
+const allTiers = ["Blockbuster", "Mainstream", "Moderate", "Niche", "Obscure"];
+const selectedTiers = view(Inputs.checkbox(allTiers, { value: allTiers, label: "Filter by tier" }));
+return {allTiers,selectedTiers};
+}});
+
+define({id: "38bab17e", inputs: ["raw_dataset"], outputs: ["Y_CAP","processedData","pops","getQuantile","thresholds","finalData","tierColors"], body: (raw_dataset) => {
+const Y_CAP = 20;
+
+const processedData = raw_dataset.map(d => {
+  const releaseDate = new Date(d.movie_data.release_date);
+  const oneYearBefore = new Date(releaseDate);
+  oneYearBefore.setFullYear(oneYearBefore.getFullYear() - 1);
+
+  const yearPriorTrends = d.trends.filter(t => {
+    const trendDate = new Date(t.date + "-01");
+    return trendDate >= oneYearBefore && trendDate < releaseDate;
+  });
+
+  const avgSongPop = yearPriorTrends.reduce((sum, t) =>
+    sum + (t.scores.song === "<1" ? 0.5 : parseFloat(t.scores.song)), 0
+  ) / (yearPriorTrends.length || 1);
+
+  return {
+    title:        d.movie_data.title,
+    full_date:    releaseDate,
+    movie_pop:    parseFloat(d.movie_data.popularity),
+    song_pop_avg: avgSongPop
+  };
+});
+
+const pops = processedData.map(d => d.movie_pop).sort((a, b) => a - b);
+const getQuantile = p => pops[Math.floor(p * (pops.length - 1))];
+const thresholds = {
+  obs:  getQuantile(0.2),
+  nic:  getQuantile(0.4),
+  mod:  getQuantile(0.6),
+  main: getQuantile(0.8)
+};
+
+const finalData = processedData
+  .filter(d => d.full_date.getFullYear() >= 2015)
+  .map(d => {
+    let tier = "Blockbuster";
+    if      (d.movie_pop <= thresholds.obs)  tier = "Obscure";
+    else if (d.movie_pop <= thresholds.nic)  tier = "Niche";
+    else if (d.movie_pop <= thresholds.mod)  tier = "Moderate";
+    else if (d.movie_pop <= thresholds.main) tier = "Mainstream";
+    return { ...d, tier };
+  });
+
+const tierColors = {
+  "Blockbuster": "#2d5a27",
+  "Mainstream":  "#7cb342",
+  "Moderate":    "#fbc02d",
+  "Niche":       "#fb8c00",
+  "Obscure":     "#e53935"
+};
+return {Y_CAP,processedData,pops,getQuantile,thresholds,finalData,tierColors};
+}});
+
+define({id: "b1790187", inputs: ["Plot","Y_CAP","tierColors","finalData","selectedTiers","display"], body: async (Plot,Y_CAP,tierColors,finalData,selectedTiers,display) => {
+display(await(
+Plot.plot({
+  grid: true,
+  height: 500,
+  x: { label: "Release date →", domain: [new Date("2015-01-01"), new Date("2026-01-01")] },
+  y: { label: "↑ Song popularity (avg. 1 year before release)", domain: [0, Y_CAP] },
+  color: { domain: Object.keys(tierColors), range: Object.values(tierColors), legend: true },
+  marks: [
+    Plot.linearRegressionY(finalData, {
+      x: "full_date", y: "song_pop_avg",
+      stroke: "#ccc", strokeDasharray: "4,4", ci: null
+    }),
+    Plot.dot(finalData.filter(d => selectedTiers.includes(d.tier) && d.song_pop_avg <= Y_CAP), {
+      x: "full_date", y: "song_pop_avg", fill: "tier", tip: true,
+      title: d => `${d.title}\nPop: ${d.song_pop_avg.toFixed(2)}`
+    }),
+    Plot.dot(finalData.filter(d => selectedTiers.includes(d.tier) && d.song_pop_avg > Y_CAP), {
+      x: "full_date", y: Y_CAP, fill: "tier", symbol: "triangle", r: 6, tip: true,
+      title: d => `${d.title}\nOUTLIER: ${d.song_pop_avg.toFixed(2)}`
+    }),
+    Plot.linearRegressionY(finalData.filter(d => selectedTiers.includes(d.tier)), {
+      x: "full_date", y: "song_pop_avg",
+      stroke: "black", strokeWidth: 2, ci: null
+    }),
+    Plot.text(["Selected trend"], { x: new Date("2025-06-01"), y: Y_CAP - 1, textAnchor: "end" }),
+    Plot.text(["Overall trend"],  { x: new Date("2025-06-01"), y: 1,         textAnchor: "end", fill: "#aaa" })
+  ]
+})
+))
+}});
+
+define({id: "321619b4", inputs: ["raw_dataset"], outputs: ["parseScore","processed","top15"], body: (raw_dataset) => {
+const parseScore = s => s === "<1" ? 0.5 : +s;
+
+const processed = raw_dataset.map(d => ({
+  song:   d.song_data.song_name,
+  artist: d.song_data.artist_names,
+  movie:  d.movie_data.title,
+  score:  Math.max(...d.trends.map(t => parseScore(t.scores.song)))
+}));
+
+const top15 = processed
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 15);
+return {parseScore,processed,top15};
+}});
+
+define({id: "8ff72456", inputs: ["Plot","width","top15","display"], body: async (Plot,width,top15,display) => {
+display(await(
+Plot.plot({
+  title: "Top 15 songs by Google Trends peak score (France)",
+  subtitle: "Score 0–100 : 100 = peak popularity over the full period",
+  marginLeft: 220,
+  marginRight: 60,
+  width: width,
+  height: 480,
+  x: {
+    label: "Google Trends peak score →",
+    domain: [0, 105],
+    grid: true
+  },
+  y: {
+    domain: top15.map(d => d.movie),
+    label: null
+  },
+  marks: [
+    Plot.barX(top15, {
+      x: "score",
+      y: "movie",
+      fill: "#4A90D9",
+      sort: { y: "-x" },
+      tip: {
+        channels: {
+          "Film":    "movie",
+          "Artiste": "artist",
+          "Chanson": d => d.song.length > 50 ? d.song.slice(0, 50) + "…" : d.song,
+          "Score":   "score"
+        }
+      }
+    }),
+    Plot.text(top15, {
+      x: "score",
+      y: "movie",
+      text: d => d.score.toFixed(0),
+      dx: 6,
+      textAnchor: "start",
+      fontSize: 12,
+      fill: "#333"
+    }),
+    Plot.ruleX([100], {
+      stroke: "#e74c3c",
+      strokeDasharray: "4,4",
+      strokeWidth: 1.5
+    })
+  ]
+})
+))
+}});
+
+</script>
+</head>
+<body>
+<div id="observablehq-center">
+<aside id="observablehq-toc" data-selector="h1:not(:first-of-type)[id], h2:first-child[id], :not(h1) + h2[id]">
+<nav>
+<div>Contents</div>
+<ol>
+<li class="observablehq-secondary-link"><a href="#graph-1-how-does-the-popularity-lifecycle-of-a-cinematic-release-compare-to-that-of-its-official-soundtrack-over-time">Graph 1 — How does the popularity lifecycle of a cinematic release compare to that of its official soundtrack over time?</a></li>
+<li class="observablehq-secondary-link"><a href="#graph-2-does-recent-movies-use-more-trendy-songs">Graph 2 — Does recent movies use more &quot;trendy&quot; songs?</a></li>
+<li class="observablehq-secondary-link"><a href="#graph-3-do-american-songs-get-more-traction-than-french-songs-in-movies">Graph 3 — Do American songs get more traction than French songs in movies?</a></li>
+</ol>
+</nav>
+</aside>
+<main id="observablehq-main" class="observablehq">
+<h1 id="movie-and-soundtrack-trends-dashboard" tabindex="-1"><a class="observablehq-header-anchor" href="#movie-and-soundtrack-trends-dashboard">Movie &amp; Soundtrack Trends Dashboard</a></h1>
+<p>This dashboard was created as a group project exploring the relationship between
+movies and their soundtracks through Google Trends data. The dataset contains
+100 movies and series shown in France, each paired with a notable song from its
+soundtrack, with monthly search interest scores ranging from 0 to 100.</p>
+<hr>
+<h2 id="graph-1-how-does-the-popularity-lifecycle-of-a-cinematic-release-compare-to-that-of-its-official-soundtrack-over-time" tabindex="-1"><a class="observablehq-header-anchor" href="#graph-1-how-does-the-popularity-lifecycle-of-a-cinematic-release-compare-to-that-of-its-official-soundtrack-over-time">Graph 1 — How does the popularity lifecycle of a cinematic release compare to that of its official soundtrack over time?</a></h2>
+<div class="observablehq observablehq--block"><!--:c1580104:--></div>
+<div class="observablehq observablehq--block"><!--:3a3c9b2c:--></div>
+<div class="observablehq observablehq--block"><!--:01d997a9:--></div>
+<div class="observablehq observablehq--block"><observablehq-loading></observablehq-loading><!--:fe7fc65c:--></div>
+<hr>
+<h2 id="graph-2-does-recent-movies-use-more-trendy-songs" tabindex="-1"><a class="observablehq-header-anchor" href="#graph-2-does-recent-movies-use-more-trendy-songs">Graph 2 — Does recent movies use more "trendy" songs?</a></h2>
+<h3 id="how-this-chart-was-built" tabindex="-1"><a class="observablehq-header-anchor" href="#how-this-chart-was-built">How this chart was built</a></h3>
+<p><strong>Processing the data.</strong> The raw data is processed to extract meaningful metrics.
+To strictly eliminate the bias of a movie boosting its own soundtrack popularity,
+a 12-month time window strictly before each movie's release date is computed
+dynamically. The monthly search trends are then filtered to isolate this exact
+period and the average song popularity is computed. Unquantifiable string values
+like "&lt;1" are parsed as 0.5 to allow mathematical operations without crashing
+the calculation.</p>
+<p><strong>Calculating and attributing the tiers.</strong> Instead of using arbitrary hardcoded
+thresholds, exact quantiles at 20%, 40%, 60%, and 80% are calculated based on
+the distribution of movie popularity scores across the entire dataset. This
+ensures movies are divided into five statistically balanced segments: Obscure,
+Niche, Moderate, Mainstream, and Blockbuster. Movies released before 2015 are
+filtered out to ensure the graph strictly answers the research question regarding
+recent trends.</p>
+<p><strong>Creating the graph.</strong> Observable Plot builds an interactive scatterplot with a
+custom color scale for the five tiers. To manage outliers and prevent extreme
+values from squashing the scale, a visual cap is set at a Y-axis limit of 20.
+Normal scores are plotted as standard dots, while outliers above 20 are mapped
+as triangles pinned to the top of the axis, with interactive tooltips revealing
+their true values. Two distinct linear regressions are displayed: a dashed gray
+line representing the global baseline for all data, and a solid black line that
+recalculates dynamically based on the tiers selected via the interactive
+checkboxes.</p>
+<div class="observablehq observablehq--block"><!--:a3a3f2f0:--></div>
+<div class="observablehq observablehq--block"><!--:38bab17e:--></div>
+<div class="observablehq observablehq--block"><observablehq-loading></observablehq-loading><!--:b1790187:--></div>
+<hr>
+<h2 id="graph-3-do-american-songs-get-more-traction-than-french-songs-in-movies" tabindex="-1"><a class="observablehq-header-anchor" href="#graph-3-do-american-songs-get-more-traction-than-french-songs-in-movies">Graph 3 — Do American songs get more traction than French songs in movies?</a></h2>
+<h3 id="how-this-chart-was-built-1" tabindex="-1"><a class="observablehq-header-anchor" href="#how-this-chart-was-built-1">How this chart was built</a></h3>
+<p>The dataset is processed to extract the peak Google Trends score for each song —
+the highest monthly score recorded over the entire available period. Google
+Trends sometimes returns the string "&lt;1" instead of 0 when a song has negligible
+but non-zero interest; this is converted to 0.5 to preserve the distinction
+while still allowing numerical operations. The 100 songs are then ranked by
+their peak score and the top 15 are selected, as the majority of remaining songs
+score below 5 and would only add visual noise without contributing meaningful
+insight.</p>
+<p>The chart uses horizontal bars rather than vertical ones because movie titles
+are long strings that would be unreadable rotated on a vertical axis. Bars are
+sorted from highest to lowest score so the eye immediately reads a hierarchy
+from top to bottom. The exact score is printed at the tip of each bar to
+eliminate the need to read back against the X axis. A red dashed reference line
+at 100 marks the maximum possible Google Trends score, making it instantly clear
+which songs reached the absolute peak. Finally, a hover tooltip reveals the full
+song name and artist — details that cannot fit directly on the chart — following
+the "overview first, details on demand" principle.</p>
+<div class="observablehq observablehq--block"><!--:321619b4:--></div>
+<div class="observablehq observablehq--block"><observablehq-loading></observablehq-loading><!--:8ff72456:--></div>
+</main>
+<footer id="observablehq-footer">
+<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-24T16:52:53">Feb 24, 2026</a>.</div>
+</footer>
+</div>
+</body>
+</html>

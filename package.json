@@ -1,0 +1,15 @@
+{
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "observable preview",
+    "build": "observable build",
+    "deploy-pages": "npm run build && gh-pages -d dist"
+  },
+  "dependencies": {
+    "@observablehq/framework": "latest"
+  },
+  "devDependencies": {
+    "gh-pages": "latest"
+  }
+}
