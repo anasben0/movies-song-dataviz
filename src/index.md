@@ -128,6 +128,23 @@ Plot.plot({
   width: width,
   height: 500,
   marginLeft: 50,
+  // Injection du module de légende
+  color: {
+    legend: true,
+    type: "categorical",
+    domain: [
+      "Movie Popularity", 
+      "Soundtrack Popularity", 
+      "Movie Dominates", 
+      "Soundtrack Dominates"
+    ],
+    range: [
+      "#2ca02c",                 // Vert solide (Ligne Film)
+      "#ff7f0e",                 // Orange solide (Ligne Musique)
+      "rgba(44, 160, 44, 0.4)",  // Vert transparent (Zone Film)
+      "rgba(255, 127, 14, 0.4)"  // Orange transparent (Zone Musique)
+    ]
+  },
   y: { 
     label: "Relative Popularity (%)", 
     domain: [0, 100], 
@@ -138,20 +155,17 @@ Plot.plot({
     grid: true 
   },
   marks: [
-    // Remplissage de la différence (Vert / Orange)
     Plot.differenceY(formattedData, {
       x: "date",
       y1: "movieRelativePop",
       y2: "songRelativePop",
-      positiveFill: "rgba(44, 160, 44, 0.4)",
-      negativeFill: "rgba(255, 127, 14, 0.4)"
+      positiveFill: "rgba(255, 127, 14, 0.4)", // Positif (Musique > Film) -> Orange
+      negativeFill: "rgba(44, 160, 44, 0.4)"   // Négatif (Film > Musique) -> Vert
     }),
     
-    // Lignes principales
     Plot.lineY(formattedData, { x: "date", y: "movieRelativePop", stroke: "#2ca02c", strokeWidth: 2 }),
     Plot.lineY(formattedData, { x: "date", y: "songRelativePop", stroke: "#ff7f0e", strokeWidth: 2 }),
     
-    // Curseur interactif
     Plot.ruleX(formattedData, Plot.pointerX({
       x: "date", stroke: "gray", strokeWidth: 1, strokeDasharray: "4,4",
       channels: {

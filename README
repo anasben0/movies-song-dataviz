@@ -1,0 +1,13 @@
+# Movies Song Dataviz
+
+## Installation and Running the Project
+
+To run this project, execute the following commands:
+
+```bash
+npm install
+npm run build
+npm run dev
+```
+
+## Link to the Observable project: [https://observablehq.com/d/4f1f0d88eb9d283d](https://observablehq.com/d/4f1f0d88eb9d283d)
