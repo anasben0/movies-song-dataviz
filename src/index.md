@@ -11,48 +11,134 @@ soundtrack, with monthly search interest scores ranging from 0 to 100.
 
 ---
 
-## Graph 1 — How does the popularity lifecycle of a cinematic release compare to that of its official soundtrack over time?
 ```js
 const raw_dataset = await FileAttachment("data/movie-song-trends_dataset.json").json();
 ```
+
+## Graph 1 — How does the popularity lifecycle of a cinematic release compare to that of its official soundtrack over time?
+
+**Objective:** To visually identify the "Crossover Point"—the exact moment a derivative work (the soundtrack) surpasses the original work (the movie) in public interest—and to analyze the decay rate of both cultural artifacts.
+
+### How this chart was built
+
+### Data Provenance & Structure
+
+The analysis relies on a compiled JSON dataset structured across three primary dimensions:
+
+* **Movie Metadata:** Title, release date, and global popularity metrics.
+* **Audio Metadata:** Track title, artist, and release date.
+* **Time-Series Data (Trends):** A monthly chronological array tracking search interest scores. 
+
+*Note on Data Integrity:* Background statistical noise (originally logged as less than 1) has been strictly converted to zeroes to allow for algorithmic processing. Furthermore, an upstream filter has been deployed to exclude movie-song pairs where the musical signal remains at absolute zero throughout the entire timeline, ensuring only relevant samples are analyzed.
+
+### Mathematical Processing: Min-Max Normalization
+
+Comparing raw search volumes between a global blockbuster and a single audio track introduces a mathematical bias, as the movie's massive volume visually flattens the music's data. To counteract this, a relative normalization was applied to each time series.
+
+Each data point was scaled to a 0 to 100 percent range relative to its own absolute maximum peak. This transformation allows us to study the pure dynamics (the cycles of hype and cultural decay) rather than incomparable absolute volumes.
+
+### Global Average Mode
+
+To contextualize the data, users can select **"Global Average"** from the target selector. This aggregates all valid movies and soundtracks, calculates their mean curves, and dynamically normalizes them to a 100 percent scale to represent the definitive industry standard comparison between film and music longevity.
+
+### Visual Encoding & Interactive Features
+
+* **Geometric Marks:** Continuous lines (Plot lineY) were selected for time-series data. The difference mark (Plot differenceY) fills the area between the two curves: green for movie dominance, orange for soundtrack dominance.
+* **Target Selector:** A dynamic dropdown menu allows the user to isolate specific movies or analyze the overall industry average.
+* **Hover Telemetry:** The implementation of an interactive pointer generates a vertical tracking line equipped with a tooltip, providing an immediate readout of the exact relative percentages.
+
 ```js
-const movieTitles = [...new Set(raw_dataset.map(d => d.movie_data.title))];
-const selectedMovieTitle = view(Inputs.select(movieTitles, { label: "Select a movie" }));
+const selectedMovieTitle = view(Inputs.select(
+  ["Global Average"].concat(
+    raw_dataset.filter(d => {
+      return d.trends.some(t => {
+        const score = t.scores.song;
+        return score !== "<1" && Number(score) > 0;
+      });
+    }).map(d => d.movie_data.title)
+  ), 
+  {
+    label: "Select a target:",
+    value: "Global Average"
+  }
+));
 ```
+
 ```js
-const selectedEntry = raw_dataset.find(d => d.movie_data.title === selectedMovieTitle);
+const formattedData = (() => {
+  const parseScore = (scoreStr) => scoreStr === "<1" ? 0 : Number(scoreStr);
+  const validMovies = raw_dataset.filter(d => d.trends.some(t => parseScore(t.scores.song) > 0));
 
-const rawMovieScores = selectedEntry.trends.map(t => t.scores.movie === "<1" ? 0.5 : +t.scores.movie);
-const rawSongScores  = selectedEntry.trends.map(t => t.scores.song  === "<1" ? 0.5 : +t.scores.song);
+  if (selectedMovieTitle === "Global Average") {
+    const allNorm = validMovies.map(movie => {
+      const maxM = Math.max(...movie.trends.map(t => parseScore(t.scores.movie)));
+      const maxS = Math.max(...movie.trends.map(t => parseScore(t.scores.song)));
+      return movie.trends.map(t => ({
+        date: t.date,
+        moviePct: maxM > 0 ? (parseScore(t.scores.movie) / maxM) * 100 : 0,
+        songPct: maxS > 0 ? (parseScore(t.scores.song) / maxS) * 100 : 0
+      }));
+    });
 
-const maxMovie = Math.max(...rawMovieScores);
-const maxSong  = Math.max(...rawSongScores);
+    const dates = validMovies[0].trends.map(t => t.date);
+    const averaged = dates.map((dateStr, i) => {
+      return {
+        date: new Date(dateStr),
+        avgMovie: d3.mean(allNorm, d => d[i].moviePct),
+        avgSong: d3.mean(allNorm, d => d[i].songPct)
+      };
+    });
 
-const formattedData = selectedEntry.trends.map((t, i) => ({
-  date:             new Date(t.date + "-01"),
-  movieRelativePop: maxMovie > 0 ? (rawMovieScores[i] / maxMovie) * 100 : 0,
-  songRelativePop:  maxSong  > 0 ? (rawSongScores[i]  / maxSong)  * 100 : 0,
-  rawMovieScore:    rawMovieScores[i],
-  rawSongScore:     rawSongScores[i]
-}));
+    const maxAvgM = Math.max(...averaged.map(d => d.avgMovie));
+    const maxAvgS = Math.max(...averaged.map(d => d.avgSong));
+
+    return averaged.map(d => ({
+      date: d.date,
+      movieRelativePop: maxAvgM > 0 ? (d.avgMovie / maxAvgM) * 100 : 0,
+      songRelativePop: maxAvgS > 0 ? (d.avgSong / maxAvgS) * 100 : 0,
+      rawMovieScore: "N/A (Average Mode)",
+      rawSongScore: "N/A (Average Mode)"
+    }));
+
+  } else {
+    const targetData = raw_dataset.find(d => d.movie_data.title === selectedMovieTitle);
+    
+    let parsed = targetData.trends.map(d => ({
+      date: new Date(d.date),
+      rawMovieScore: parseScore(d.scores.movie),
+      rawSongScore: parseScore(d.scores.song)
+    }));
+
+    const maxMovie = Math.max(...parsed.map(d => d.rawMovieScore));
+    const maxSong = Math.max(...parsed.map(d => d.rawSongScore));
+
+    return parsed.map(d => ({
+      ...d,
+      movieRelativePop: maxMovie > 0 ? (d.rawMovieScore / maxMovie) * 100 : 0,
+      songRelativePop: maxSong > 0 ? (d.rawSongScore / maxSong) * 100 : 0
+    }));
+  }
+})();
 ```
+
 ```js
 Plot.plot({
   title: `Normalized Comparative Analysis: ${selectedMovieTitle}`,
-  subtitle: "Movie vs. Soundtrack Peak Intensity (0-100% Scale)",
+  subtitle: selectedMovieTitle === "Global Average" ? "Industry Average: Movies vs. Soundtracks Peak Intensity" : "Movie vs. Soundtrack Peak Intensity",
   width: width,
   height: 500,
   marginLeft: 50,
-  y: {
-    label: "Relative Popularity (%)",
-    domain: [0, 100],
-    grid: true
+  y: { 
+    label: "Relative Popularity (%)", 
+    domain: [0, 100], 
+    grid: true 
   },
-  x: {
-    label: "Timeline",
-    grid: true
+  x: { 
+    label: "Timeline", 
+    grid: true 
   },
   marks: [
+    // Remplissage de la différence (Vert / Orange)
     Plot.differenceY(formattedData, {
       x: "date",
       y1: "movieRelativePop",
@@ -60,21 +146,21 @@ Plot.plot({
       positiveFill: "rgba(44, 160, 44, 0.4)",
       negativeFill: "rgba(255, 127, 14, 0.4)"
     }),
+    
+    // Lignes principales
     Plot.lineY(formattedData, { x: "date", y: "movieRelativePop", stroke: "#2ca02c", strokeWidth: 2 }),
-    Plot.lineY(formattedData, { x: "date", y: "songRelativePop",  stroke: "#ff7f0e", strokeWidth: 2 }),
+    Plot.lineY(formattedData, { x: "date", y: "songRelativePop", stroke: "#ff7f0e", strokeWidth: 2 }),
+    
+    // Curseur interactif
     Plot.ruleX(formattedData, Plot.pointerX({
-      x: "date",
-      stroke: "gray",
-      strokeWidth: 1,
-      strokeDasharray: "4,4",
+      x: "date", stroke: "gray", strokeWidth: 1, strokeDasharray: "4,4",
       channels: {
         "Movie Rel. Pop. (%)": d => Math.round(d.movieRelativePop),
-        "Raw Movie Score":     "rawMovieScore",
-        "Song Rel. Pop. (%)":  d => Math.round(d.songRelativePop),
-        "Raw Song Score":      "rawSongScore"
+        "Song Rel. Pop. (%)": d => Math.round(d.songRelativePop)
       },
       tip: true
     })),
+    
     Plot.ruleY([0])
   ]
 })
@@ -111,10 +197,12 @@ their true values. Two distinct linear regressions are displayed: a dashed gray
 line representing the global baseline for all data, and a solid black line that
 recalculates dynamically based on the tiers selected via the interactive
 checkboxes.
+
 ```js
 const allTiers = ["Blockbuster", "Mainstream", "Moderate", "Niche", "Obscure"];
 const selectedTiers = view(Inputs.checkbox(allTiers, { value: allTiers, label: "Filter by tier" }));
 ```
+
 ```js
 const Y_CAP = 20;
 
@@ -168,6 +256,7 @@ const tierColors = {
   "Obscure":     "#e53935"
 };
 ```
+
 ```js
 Plot.plot({
   grid: true,
@@ -222,6 +311,7 @@ at 100 marks the maximum possible Google Trends score, making it instantly clear
 which songs reached the absolute peak. Finally, a hover tooltip reveals the full
 song name and artist — details that cannot fit directly on the chart — following
 the "overview first, details on demand" principle.
+
 ```js
 const parseScore = s => s === "<1" ? 0.5 : +s;
 
@@ -236,6 +326,7 @@ const top15 = processed
   .sort((a, b) => b.score - a.score)
   .slice(0, 15);
 ```
+
 ```js
 Plot.plot({
   title: "Top 15 songs by Google Trends peak score (France)",
