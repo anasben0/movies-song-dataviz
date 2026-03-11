@@ -37,13 +37,21 @@ Comparing raw search volumes between a global blockbuster and a single audio tra
 
 Each data point was scaled to a 0 to 100 percent range relative to its own absolute maximum peak. This transformation allows us to study the pure dynamics (the cycles of hype and cultural decay) rather than incomparable absolute volumes.
 
+The normalization formula applied to each data point is:
+
+> **x_norm = (x / max(X)) × 100**
+
+where `X` is the full time series for a given movie or song, and `max(X)` is its historical peak score. This ensures every series reaches exactly 100 at its peak, making the two curves directly comparable in terms of relative intensity.
+
 ### Global Average Mode
 
-To contextualize the data, users can select **"Global Average"** from the target selector. Because movies are released in different years, calculating an average based on absolute calendar dates is methodologically flawed. Instead, an "Event Study" approach was implemented:
+To contextualize the data, users can select **"Global Average"** from the target selector. This aggregates all valid movies and soundtracks, calculates their mean curves, and dynamically normalizes them to a 100 percent scale to represent the definitive industry standard comparison between film and music longevity.
 
-* All movies and soundtracks are shifted and aligned to a common temporal point: **t = 0 (The Release Month)**.
-* The X-axis dynamically transforms to display relative time, calculating the average normalized popularity from **2 months before** the release up to **12 months after**.
-* This provides a true, standardized baseline of the industry's hype cycle and crossover dynamics.
+The average at each time step `t` is computed as:
+
+> **x̄(t) = (1/N) × Σ x_norm(i, t)  for i = 1 to N**
+
+where `N` is the number of valid movie-song pairs and `x_norm(i, t)` is the normalized score of pair `i` at time `t`. A second normalization pass is then applied to the resulting mean curve so that the global average also peaks at 100, ensuring visual comparability across modes.
 
 ### Visual Encoding & Interactive Features
 
@@ -74,67 +82,41 @@ const formattedData = (() => {
   const validMovies = raw_dataset.filter(d => d.trends.some(t => parseScore(t.scores.song) > 0));
 
   if (selectedMovieTitle === "Global Average") {
-    const windowStart = -2; // 2 mois avant la sortie
-    const windowEnd = 12;   // 12 mois après la sortie (1 an)
-    
-    let aggregated = {};
-    for (let i = windowStart; i <= windowEnd; i++) {
-      aggregated[i] = { movieSum: 0, songSum: 0, count: 0 };
-    }
-
-    // 1. Aligner tous les films sur t=0 (Mois de sortie)
-    validMovies.forEach(movie => {
-      const releaseDate = new Date(movie.movie_data.release_date);
-      const releaseYear = releaseDate.getFullYear();
-      const releaseMonth = releaseDate.getMonth();
-      
+    const allNorm = validMovies.map(movie => {
       const maxM = Math.max(...movie.trends.map(t => parseScore(t.scores.movie)));
       const maxS = Math.max(...movie.trends.map(t => parseScore(t.scores.song)));
-
-      movie.trends.forEach(t => {
-        const tDate = new Date(t.date + "-01");
-        const relativeMonth = (tDate.getFullYear() - releaseYear) * 12 + (tDate.getMonth() - releaseMonth);
-        
-        if (relativeMonth >= windowStart && relativeMonth <= windowEnd) {
-          const mPop = maxM > 0 ? (parseScore(t.scores.movie) / maxM) * 100 : 0;
-          const sPop = maxS > 0 ? (parseScore(t.scores.song) / maxS) * 100 : 0;
-          
-          aggregated[relativeMonth].movieSum += mPop;
-          aggregated[relativeMonth].songSum += sPop;
-          aggregated[relativeMonth].count += 1;
-        }
-      });
+      return movie.trends.map(t => ({
+        date: t.date,
+        moviePct: maxM > 0 ? (parseScore(t.scores.movie) / maxM) * 100 : 0,
+        songPct: maxS > 0 ? (parseScore(t.scores.song) / maxS) * 100 : 0
+      }));
     });
 
-    // 2. Faire la moyenne de ces mois relatifs
-    const averaged = [];
-    for (let i = windowStart; i <= windowEnd; i++) {
-      const count = aggregated[i].count;
-      averaged.push({
-        timeX: i, // L'axe X est maintenant un nombre (le mois relatif)
-        avgMovie: count > 0 ? aggregated[i].movieSum / count : 0,
-        avgSong: count > 0 ? aggregated[i].songSum / count : 0
-      });
-    }
+    const dates = validMovies[0].trends.map(t => t.date);
+    const averaged = dates.map((dateStr, i) => {
+      return {
+        date: new Date(dateStr),
+        avgMovie: d3.mean(allNorm, d => d[i].moviePct),
+        avgSong: d3.mean(allNorm, d => d[i].songPct)
+      };
+    });
 
-    // 3. Re-normaliser à 100%
     const maxAvgM = Math.max(...averaged.map(d => d.avgMovie));
     const maxAvgS = Math.max(...averaged.map(d => d.avgSong));
 
     return averaged.map(d => ({
-      timeX: d.timeX,
+      date: d.date,
       movieRelativePop: maxAvgM > 0 ? (d.avgMovie / maxAvgM) * 100 : 0,
       songRelativePop: maxAvgS > 0 ? (d.avgSong / maxAvgS) * 100 : 0,
-      rawMovieScore: "N/A",
-      rawSongScore: "N/A"
+      rawMovieScore: "N/A (Average Mode)",
+      rawSongScore: "N/A (Average Mode)"
     }));
 
   } else {
-    // Calcul classique pour un film spécifique (L'axe X reste une Date)
     const targetData = raw_dataset.find(d => d.movie_data.title === selectedMovieTitle);
     
     let parsed = targetData.trends.map(d => ({
-      timeX: new Date(d.date),
+      date: new Date(d.date),
       rawMovieScore: parseScore(d.scores.movie),
       rawSongScore: parseScore(d.scores.song)
     }));
@@ -153,27 +135,26 @@ const formattedData = (() => {
 
 ```js
 Plot.plot({
-  // Titre dynamique avec calcul de la date de sortie
-  title: (() => {
-    if (selectedMovieTitle === "Global Average") {
-      return "Normalized Comparative Analysis: Global Industry Average";
-    }
-    const targetData = raw_dataset.find(d => d.movie_data.title === selectedMovieTitle);
-    const releaseDate = new Date(targetData.movie_data.release_date);
-    // Formatage en anglais : Mois Année
-    const dateString = releaseDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    return `Normalized Comparative Analysis: ${selectedMovieTitle} (${dateString})`;
-  })(),
-  
-  subtitle: selectedMovieTitle === "Global Average" ? "Industry Average aligned on Release Date (t=0)" : "Movie vs. Soundtrack Peak Intensity",
+  title: `Normalized Comparative Analysis: ${selectedMovieTitle}`,
+  subtitle: selectedMovieTitle === "Global Average" ? "Industry Average: Movies vs. Soundtracks Peak Intensity" : "Movie vs. Soundtrack Peak Intensity",
   width: width,
   height: 500,
   marginLeft: 50,
   color: {
     legend: true,
     type: "categorical",
-    domain: ["Movie Popularity", "Soundtrack Popularity", "Movie Dominates", "Soundtrack Dominates"],
-    range: ["#2ca02c", "#ff7f0e", "rgba(44, 160, 44, 0.4)", "rgba(255, 127, 14, 0.4)"]
+    domain: [
+      "Movie Popularity", 
+      "Soundtrack Popularity", 
+      "Movie Dominates", 
+      "Soundtrack Dominates"
+    ],
+    range: [
+      "#2ca02c",
+      "#ff7f0e",
+      "rgba(44, 160, 44, 0.4)",
+      "rgba(255, 127, 14, 0.4)"
+    ]
   },
   y: { 
     label: "Relative Popularity (%)", 
@@ -181,28 +162,23 @@ Plot.plot({
     grid: true 
   },
   x: { 
-    label: selectedMovieTitle === "Global Average" ? "Months Relative to Release Date (0 = Release)" : "Timeline", 
+    label: "Timeline", 
     grid: true 
   },
   marks: [
     Plot.differenceY(formattedData, {
-      x: "timeX",
+      x: "date",
       y1: "movieRelativePop",
       y2: "songRelativePop",
-      positiveFill: "rgba(255, 127, 14, 0.4)", // Musique gagne
-      negativeFill: "rgba(44, 160, 44, 0.4)"   // Film gagne
+      positiveFill: "rgba(255, 127, 14, 0.4)",
+      negativeFill: "rgba(44, 160, 44, 0.4)"
     }),
     
-    Plot.lineY(formattedData, { x: "timeX", y: "movieRelativePop", stroke: "#2ca02c", strokeWidth: 2 }),
-    Plot.lineY(formattedData, { x: "timeX", y: "songRelativePop", stroke: "#ff7f0e", strokeWidth: 2 }),
+    Plot.lineY(formattedData, { x: "date", y: "movieRelativePop", stroke: "#2ca02c", strokeWidth: 2 }),
+    Plot.lineY(formattedData, { x: "date", y: "songRelativePop", stroke: "#ff7f0e", strokeWidth: 2 }),
     
-    ...(selectedMovieTitle === "Global Average" ? [
-      Plot.ruleX([0], { stroke: "red", strokeDasharray: "4,4", strokeWidth: 1.5 }),
-      Plot.text(["Release Date"], { x: 0, y: 100, textAnchor: "start", dx: 5, fill: "red", fontWeight: "bold" })
-    ] : []),
-
     Plot.ruleX(formattedData, Plot.pointerX({
-      x: "timeX", stroke: "gray", strokeWidth: 1, strokeDasharray: "4,4",
+      x: "date", stroke: "gray", strokeWidth: 1, strokeDasharray: "4,4",
       channels: {
         "Movie Rel. Pop. (%)": d => Math.round(d.movieRelativePop),
         "Song Rel. Pop. (%)": d => Math.round(d.songRelativePop)
@@ -237,6 +213,28 @@ Niche, Moderate, Mainstream, and Blockbuster. Movies released before 2015 are
 filtered out to ensure the graph strictly answers the research question regarding
 recent trends.
 
+### Mathematical Processing: Pre-Release Average & Quantile Thresholds
+
+The pre-release song popularity for a given movie is the arithmetic mean of all monthly trend scores in the 12 months strictly before its release date:
+
+> **s̄(m) = (1 / |W|) × Σ s(t)  for t in W**
+
+where `W` is the set of monthly observations strictly before the release date, and `s(t)` is the parsed score at time `t` (with `"<1"` mapped to `0.5`).
+
+The five popularity tiers are determined by computing quantiles at 20%, 40%, 60%, and 80% of the full distribution of movie popularity scores, sorted in ascending order:
+
+> **q(k) = p[ floor(k × (N − 1)) ]  for k in { 0.2, 0.4, 0.6, 0.8 }**
+
+A movie is then assigned to a tier based on where its score falls relative to these thresholds:
+
+| Score range | Tier |
+|---|---|
+| p ≤ q(0.2) | Obscure |
+| q(0.2) < p ≤ q(0.4) | Niche |
+| q(0.4) < p ≤ q(0.6) | Moderate |
+| q(0.6) < p ≤ q(0.8) | Mainstream |
+| p > q(0.8) | Blockbuster |
+
 **Creating the graph.** Observable Plot builds an interactive scatterplot with a
 custom color scale for the five tiers. To manage outliers and prevent extreme
 values from squashing the scale, a visual cap is set at a Y-axis limit of 20.
@@ -246,6 +244,8 @@ their true values. Two distinct linear regressions are displayed: a dashed gray
 line representing the global baseline for all data, and a solid black line that
 recalculates dynamically based on the tiers selected via the interactive
 checkboxes.
+
+The linear regression analysis reveals a distinct downward trend in the pre-release popularity of soundtracks for more recent films. This is not an anomaly, but rather a reflection of a structural shift in Hollywood's marketing and music production strategies over the last decade.
 
 ```js
 const allTiers = ["Blockbuster", "Mainstream", "Moderate", "Niche", "Obscure"];
@@ -342,7 +342,7 @@ Plot.plot({
 
 ### How this chart was built
 
-The dataset is processed to extract the peak Google Trends score for each song —
+**Selecting the top 15.** The dataset is processed to extract the peak Google Trends score for each song —
 the highest monthly score recorded over the entire available period. Google
 Trends sometimes returns the string "<1" instead of 0 when a song has negligible
 but non-zero interest; this is converted to 0.5 to preserve the distinction
@@ -351,7 +351,20 @@ their peak score and the top 15 are selected, as the majority of remaining songs
 score below 5 and would only add visual noise without contributing meaningful
 insight.
 
-The chart uses horizontal bars rather than vertical ones because movie titles
+### Mathematical Processing: Peak Score Extraction
+
+For each song in the dataset, its peak Google Trends score is defined as the maximum value across all its monthly observations:
+
+> **P(i) = max( s(i, t) )  for all t in T(i)**
+
+where `T(i)` is the set of all monthly observations available for song `i`, and `s(i, t)` is the parsed score at time `t`, with the special value handled as:
+
+- `"<1"` → `0.5`
+- any numeric string → its numeric value
+
+The top 15 songs are then selected by sorting all peak scores in descending order and retaining the first 15. This cutoff is justified by the distribution of scores: beyond rank 15, the vast majority of remaining songs exhibit peak scores below 5, contributing negligible signal relative to the visual noise they would introduce.
+
+**Why a horizontal bar chart.** The chart uses horizontal bars rather than vertical ones because movie titles
 are long strings that would be unreadable rotated on a vertical axis. Bars are
 sorted from highest to lowest score so the eye immediately reads a hierarchy
 from top to bottom. The exact score is printed at the tip of each bar to
@@ -360,6 +373,26 @@ at 100 marks the maximum possible Google Trends score, making it instantly clear
 which songs reached the absolute peak. Finally, a hover tooltip reveals the full
 song name and artist — details that cannot fit directly on the chart — following
 the "overview first, details on demand" principle.
+
+**Color encoding by song origin.** Each bar is colored according to the detected origin of the artist —
+distinguishing between American/English-language artists and French artists, as well as other nationalities.
+This visual encoding makes it immediately readable whether the top peaks are dominated by one category,
+without requiring the viewer to cross-reference an external legend table.
+
+**Interpreting the results.** The chart reveals a clear pattern: the highest-scoring songs are predominantly
+associated with globally distributed American productions or internationally known artists. French songs
+tend to cluster in the lower portion of the ranking, rarely reaching peak scores above 50.
+This asymmetry reflects both the global reach of American pop culture and the structure of Google Trends,
+which normalizes scores relative to the peak query within the selected region — meaning a song must
+compete with international search volume to rank highly even within France.
+
+**What this chart does not show.** It is important to note that peak score alone does not capture
+sustained popularity. A song that hits 100 for a single month and then disappears differs fundamentally
+from one that maintains a score of 40 over three years. This chart is deliberately focused on cultural
+impact moments — the viral peaks — rather than long-term retention, which is better explored in Graph 1.
+Additionally, the top 15 cutoff means that several culturally significant French songs with moderate but
+consistent scores are not visible here. The chart answers a specific question about peak dominance,
+not about overall presence in the dataset.
 
 ```js
 const parseScore = s => s === "<1" ? 0.5 : +s;
