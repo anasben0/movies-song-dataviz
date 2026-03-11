@@ -39,7 +39,11 @@ Each data point was scaled to a 0 to 100 percent range relative to its own absol
 
 ### Global Average Mode
 
-To contextualize the data, users can select **"Global Average"** from the target selector. This aggregates all valid movies and soundtracks, calculates their mean curves, and dynamically normalizes them to a 100 percent scale to represent the definitive industry standard comparison between film and music longevity.
+To contextualize the data, users can select **"Global Average"** from the target selector. Because movies are released in different years, calculating an average based on absolute calendar dates is methodologically flawed. Instead, an "Event Study" approach was implemented:
+
+* All movies and soundtracks are shifted and aligned to a common temporal point: **t = 0 (The Release Month)**.
+* The X-axis dynamically transforms to display relative time, calculating the average normalized popularity from **2 months before** the release up to **12 months after**.
+* This provides a true, standardized baseline of the industry's hype cycle and crossover dynamics.
 
 ### Visual Encoding & Interactive Features
 
@@ -70,41 +74,67 @@ const formattedData = (() => {
   const validMovies = raw_dataset.filter(d => d.trends.some(t => parseScore(t.scores.song) > 0));
 
   if (selectedMovieTitle === "Global Average") {
-    const allNorm = validMovies.map(movie => {
+    const windowStart = -2; // 2 mois avant la sortie
+    const windowEnd = 12;   // 12 mois après la sortie (1 an)
+    
+    let aggregated = {};
+    for (let i = windowStart; i <= windowEnd; i++) {
+      aggregated[i] = { movieSum: 0, songSum: 0, count: 0 };
+    }
+
+    // 1. Aligner tous les films sur t=0 (Mois de sortie)
+    validMovies.forEach(movie => {
+      const releaseDate = new Date(movie.movie_data.release_date);
+      const releaseYear = releaseDate.getFullYear();
+      const releaseMonth = releaseDate.getMonth();
+      
       const maxM = Math.max(...movie.trends.map(t => parseScore(t.scores.movie)));
       const maxS = Math.max(...movie.trends.map(t => parseScore(t.scores.song)));
-      return movie.trends.map(t => ({
-        date: t.date,
-        moviePct: maxM > 0 ? (parseScore(t.scores.movie) / maxM) * 100 : 0,
-        songPct: maxS > 0 ? (parseScore(t.scores.song) / maxS) * 100 : 0
-      }));
+
+      movie.trends.forEach(t => {
+        const tDate = new Date(t.date + "-01");
+        const relativeMonth = (tDate.getFullYear() - releaseYear) * 12 + (tDate.getMonth() - releaseMonth);
+        
+        if (relativeMonth >= windowStart && relativeMonth <= windowEnd) {
+          const mPop = maxM > 0 ? (parseScore(t.scores.movie) / maxM) * 100 : 0;
+          const sPop = maxS > 0 ? (parseScore(t.scores.song) / maxS) * 100 : 0;
+          
+          aggregated[relativeMonth].movieSum += mPop;
+          aggregated[relativeMonth].songSum += sPop;
+          aggregated[relativeMonth].count += 1;
+        }
+      });
     });
 
-    const dates = validMovies[0].trends.map(t => t.date);
-    const averaged = dates.map((dateStr, i) => {
-      return {
-        date: new Date(dateStr),
-        avgMovie: d3.mean(allNorm, d => d[i].moviePct),
-        avgSong: d3.mean(allNorm, d => d[i].songPct)
-      };
-    });
+    // 2. Faire la moyenne de ces mois relatifs
+    const averaged = [];
+    for (let i = windowStart; i <= windowEnd; i++) {
+      const count = aggregated[i].count;
+      averaged.push({
+        timeX: i, // L'axe X est maintenant un nombre (le mois relatif)
+        avgMovie: count > 0 ? aggregated[i].movieSum / count : 0,
+        avgSong: count > 0 ? aggregated[i].songSum / count : 0
+      });
+    }
 
+    // 3. Re-normaliser à 100%
     const maxAvgM = Math.max(...averaged.map(d => d.avgMovie));
     const maxAvgS = Math.max(...averaged.map(d => d.avgSong));
 
     return averaged.map(d => ({
-      date: d.date,
+      timeX: d.timeX,
       movieRelativePop: maxAvgM > 0 ? (d.avgMovie / maxAvgM) * 100 : 0,
       songRelativePop: maxAvgS > 0 ? (d.avgSong / maxAvgS) * 100 : 0,
-      rawMovieScore: "N/A (Average Mode)",
-      rawSongScore: "N/A (Average Mode)"
+      rawMovieScore: "N/A",
+      rawSongScore: "N/A"
     }));
 
   } else {
+    // Calcul classique pour un film spécifique (L'axe X reste une Date)
     const targetData = raw_dataset.find(d => d.movie_data.title === selectedMovieTitle);
     
     let parsed = targetData.trends.map(d => ({
-      date: new Date(d.date),
+      timeX: new Date(d.date),
       rawMovieScore: parseScore(d.scores.movie),
       rawSongScore: parseScore(d.scores.song)
     }));
@@ -123,27 +153,27 @@ const formattedData = (() => {
 
 ```js
 Plot.plot({
-  title: `Normalized Comparative Analysis: ${selectedMovieTitle}`,
-  subtitle: selectedMovieTitle === "Global Average" ? "Industry Average: Movies vs. Soundtracks Peak Intensity" : "Movie vs. Soundtrack Peak Intensity",
+  // Titre dynamique avec calcul de la date de sortie
+  title: (() => {
+    if (selectedMovieTitle === "Global Average") {
+      return "Normalized Comparative Analysis: Global Industry Average";
+    }
+    const targetData = raw_dataset.find(d => d.movie_data.title === selectedMovieTitle);
+    const releaseDate = new Date(targetData.movie_data.release_date);
+    // Formatage en anglais : Mois Année
+    const dateString = releaseDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return `Normalized Comparative Analysis: ${selectedMovieTitle} (${dateString})`;
+  })(),
+  
+  subtitle: selectedMovieTitle === "Global Average" ? "Industry Average aligned on Release Date (t=0)" : "Movie vs. Soundtrack Peak Intensity",
   width: width,
   height: 500,
   marginLeft: 50,
-  // Injection du module de légende
   color: {
     legend: true,
     type: "categorical",
-    domain: [
-      "Movie Popularity", 
-      "Soundtrack Popularity", 
-      "Movie Dominates", 
-      "Soundtrack Dominates"
-    ],
-    range: [
-      "#2ca02c",                 // Vert solide (Ligne Film)
-      "#ff7f0e",                 // Orange solide (Ligne Musique)
-      "rgba(44, 160, 44, 0.4)",  // Vert transparent (Zone Film)
-      "rgba(255, 127, 14, 0.4)"  // Orange transparent (Zone Musique)
-    ]
+    domain: ["Movie Popularity", "Soundtrack Popularity", "Movie Dominates", "Soundtrack Dominates"],
+    range: ["#2ca02c", "#ff7f0e", "rgba(44, 160, 44, 0.4)", "rgba(255, 127, 14, 0.4)"]
   },
   y: { 
     label: "Relative Popularity (%)", 
@@ -151,23 +181,28 @@ Plot.plot({
     grid: true 
   },
   x: { 
-    label: "Timeline", 
+    label: selectedMovieTitle === "Global Average" ? "Months Relative to Release Date (0 = Release)" : "Timeline", 
     grid: true 
   },
   marks: [
     Plot.differenceY(formattedData, {
-      x: "date",
+      x: "timeX",
       y1: "movieRelativePop",
       y2: "songRelativePop",
-      positiveFill: "rgba(255, 127, 14, 0.4)", // Positif (Musique > Film) -> Orange
-      negativeFill: "rgba(44, 160, 44, 0.4)"   // Négatif (Film > Musique) -> Vert
+      positiveFill: "rgba(255, 127, 14, 0.4)", // Musique gagne
+      negativeFill: "rgba(44, 160, 44, 0.4)"   // Film gagne
     }),
     
-    Plot.lineY(formattedData, { x: "date", y: "movieRelativePop", stroke: "#2ca02c", strokeWidth: 2 }),
-    Plot.lineY(formattedData, { x: "date", y: "songRelativePop", stroke: "#ff7f0e", strokeWidth: 2 }),
+    Plot.lineY(formattedData, { x: "timeX", y: "movieRelativePop", stroke: "#2ca02c", strokeWidth: 2 }),
+    Plot.lineY(formattedData, { x: "timeX", y: "songRelativePop", stroke: "#ff7f0e", strokeWidth: 2 }),
     
+    ...(selectedMovieTitle === "Global Average" ? [
+      Plot.ruleX([0], { stroke: "red", strokeDasharray: "4,4", strokeWidth: 1.5 }),
+      Plot.text(["Release Date"], { x: 0, y: 100, textAnchor: "start", dx: 5, fill: "red", fontWeight: "bold" })
+    ] : []),
+
     Plot.ruleX(formattedData, Plot.pointerX({
-      x: "date", stroke: "gray", strokeWidth: 1, strokeDasharray: "4,4",
+      x: "timeX", stroke: "gray", strokeWidth: 1, strokeDasharray: "4,4",
       channels: {
         "Movie Rel. Pop. (%)": d => Math.round(d.movieRelativePop),
         "Song Rel. Pop. (%)": d => Math.round(d.songRelativePop)
