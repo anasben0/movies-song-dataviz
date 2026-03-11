@@ -15,11 +15,12 @@
 <link rel="modulepreload" href="./_observablehq/client.48702492.js">
 <link rel="modulepreload" href="./_observablehq/runtime.e080113b.js">
 <link rel="modulepreload" href="./_observablehq/stdlib.90c1b95d.js">
-<link rel="modulepreload" href="./_npm/d3@7.9.0/f185554e.js">
 <link rel="modulepreload" href="./_observablehq/stdlib/inputs.b601f1ef.js">
 <link rel="modulepreload" href="./_npm/@observablehq/plot@0.6.17/58eee7fc.js">
 <link rel="modulepreload" href="./_npm/htl@0.3.1/4b80ded0.js">
 <link rel="modulepreload" href="./_npm/isoformat@0.2.1/2a363503.js">
+<link rel="modulepreload" href="./_npm/d3@7.9.0/f185554e.js">
+<link rel="modulepreload" href="./_npm/interval-tree-1d@1.0.4/f9f335c6.js">
 <link rel="modulepreload" href="./_npm/d3-array@3.2.4/64b15364.js">
 <link rel="modulepreload" href="./_npm/d3-axis@3.0.0/2ae7048b.js">
 <link rel="modulepreload" href="./_npm/d3-brush@3.0.0/3e5589ad.js">
@@ -50,10 +51,9 @@
 <link rel="modulepreload" href="./_npm/d3-timer@3.0.1/882e1a37.js">
 <link rel="modulepreload" href="./_npm/d3-transition@3.0.1/e99fb3d9.js">
 <link rel="modulepreload" href="./_npm/d3-zoom@3.0.0/a263356d.js">
-<link rel="modulepreload" href="./_npm/interval-tree-1d@1.0.4/f9f335c6.js">
+<link rel="modulepreload" href="./_npm/binary-search-bounds@2.0.5/a1dee187.js">
 <link rel="modulepreload" href="./_npm/internmap@2.0.3/53233f60.js">
 <link rel="modulepreload" href="./_npm/delaunator@5.0.1/f829a8e2.js">
-<link rel="modulepreload" href="./_npm/binary-search-bounds@2.0.5/a1dee187.js">
 <link rel="modulepreload" href="./_npm/robust-predicates@3.0.2/7bf6a724.js">
 <script type="module">
 
@@ -85,47 +85,73 @@ const selectedMovieTitle = view(Inputs.select(
 return {selectedMovieTitle};
 }});
 
-define({id: "6b831c96", inputs: ["raw_dataset","selectedMovieTitle","d3"], outputs: ["formattedData"], body: (raw_dataset,selectedMovieTitle,d3) => {
+define({id: "82c0d8a9", inputs: ["raw_dataset","selectedMovieTitle"], outputs: ["formattedData"], body: (raw_dataset,selectedMovieTitle) => {
 const formattedData = (() => {
   const parseScore = (scoreStr) => scoreStr === "<1" ? 0 : Number(scoreStr);
   const validMovies = raw_dataset.filter(d => d.trends.some(t => parseScore(t.scores.song) > 0));
 
   if (selectedMovieTitle === "Global Average") {
-    const allNorm = validMovies.map(movie => {
+    const windowStart = -2; // 2 mois avant la sortie
+    const windowEnd = 12;   // 12 mois après la sortie (1 an)
+    
+    let aggregated = {};
+    for (let i = windowStart; i <= windowEnd; i++) {
+      aggregated[i] = { movieSum: 0, songSum: 0, count: 0 };
+    }
+
+    // 1. Aligner tous les films sur t=0 (Mois de sortie)
+    validMovies.forEach(movie => {
+      const releaseDate = new Date(movie.movie_data.release_date);
+      const releaseYear = releaseDate.getFullYear();
+      const releaseMonth = releaseDate.getMonth();
+      
       const maxM = Math.max(...movie.trends.map(t => parseScore(t.scores.movie)));
       const maxS = Math.max(...movie.trends.map(t => parseScore(t.scores.song)));
-      return movie.trends.map(t => ({
-        date: t.date,
-        moviePct: maxM > 0 ? (parseScore(t.scores.movie) / maxM) * 100 : 0,
-        songPct: maxS > 0 ? (parseScore(t.scores.song) / maxS) * 100 : 0
-      }));
+
+      movie.trends.forEach(t => {
+        const tDate = new Date(t.date + "-01");
+        const relativeMonth = (tDate.getFullYear() - releaseYear) * 12 + (tDate.getMonth() - releaseMonth);
+        
+        if (relativeMonth >= windowStart && relativeMonth <= windowEnd) {
+          const mPop = maxM > 0 ? (parseScore(t.scores.movie) / maxM) * 100 : 0;
+          const sPop = maxS > 0 ? (parseScore(t.scores.song) / maxS) * 100 : 0;
+          
+          aggregated[relativeMonth].movieSum += mPop;
+          aggregated[relativeMonth].songSum += sPop;
+          aggregated[relativeMonth].count += 1;
+        }
+      });
     });
 
-    const dates = validMovies[0].trends.map(t => t.date);
-    const averaged = dates.map((dateStr, i) => {
-      return {
-        date: new Date(dateStr),
-        avgMovie: d3.mean(allNorm, d => d[i].moviePct),
-        avgSong: d3.mean(allNorm, d => d[i].songPct)
-      };
-    });
+    // 2. Faire la moyenne de ces mois relatifs
+    const averaged = [];
+    for (let i = windowStart; i <= windowEnd; i++) {
+      const count = aggregated[i].count;
+      averaged.push({
+        timeX: i, // L'axe X est maintenant un nombre (le mois relatif)
+        avgMovie: count > 0 ? aggregated[i].movieSum / count : 0,
+        avgSong: count > 0 ? aggregated[i].songSum / count : 0
+      });
+    }
 
+    // 3. Re-normaliser à 100%
     const maxAvgM = Math.max(...averaged.map(d => d.avgMovie));
     const maxAvgS = Math.max(...averaged.map(d => d.avgSong));
 
     return averaged.map(d => ({
-      date: d.date,
+      timeX: d.timeX,
       movieRelativePop: maxAvgM > 0 ? (d.avgMovie / maxAvgM) * 100 : 0,
       songRelativePop: maxAvgS > 0 ? (d.avgSong / maxAvgS) * 100 : 0,
-      rawMovieScore: "N/A (Average Mode)",
-      rawSongScore: "N/A (Average Mode)"
+      rawMovieScore: "N/A",
+      rawSongScore: "N/A"
     }));
 
   } else {
+    // Calcul classique pour un film spécifique (L'axe X reste une Date)
     const targetData = raw_dataset.find(d => d.movie_data.title === selectedMovieTitle);
     
     let parsed = targetData.trends.map(d => ({
-      date: new Date(d.date),
+      timeX: new Date(d.date),
       rawMovieScore: parseScore(d.scores.movie),
       rawSongScore: parseScore(d.scores.song)
     }));
@@ -143,40 +169,50 @@ const formattedData = (() => {
 return {formattedData};
 }});
 
-define({id: "ce82d682", inputs: ["Plot","selectedMovieTitle","width","formattedData","display"], body: async (Plot,selectedMovieTitle,width,formattedData,display) => {
+define({id: "38ca83f0", inputs: ["Plot","selectedMovieTitle","width","formattedData","display"], body: async (Plot,selectedMovieTitle,width,formattedData,display) => {
 display(await(
 Plot.plot({
   title: `Normalized Comparative Analysis: ${selectedMovieTitle}`,
-  subtitle: selectedMovieTitle === "Global Average" ? "Industry Average: Movies vs. Soundtracks Peak Intensity" : "Movie vs. Soundtrack Peak Intensity",
+  subtitle: selectedMovieTitle === "Global Average" ? "Industry Average aligned on Release Date (t=0)" : "Movie vs. Soundtrack Peak Intensity",
   width: width,
   height: 500,
   marginLeft: 50,
+  color: {
+    legend: true,
+    type: "categorical",
+    domain: ["Movie Popularity", "Soundtrack Popularity", "Movie Dominates", "Soundtrack Dominates"],
+    range: ["#2ca02c", "#ff7f0e", "rgba(44, 160, 44, 0.4)", "rgba(255, 127, 14, 0.4)"]
+  },
   y: { 
     label: "Relative Popularity (%)", 
     domain: [0, 100], 
     grid: true 
   },
   x: { 
-    label: "Timeline", 
+    // Le label change dynamiquement
+    label: selectedMovieTitle === "Global Average" ? "Months Relative to Release Date (0 = Release)" : "Timeline", 
     grid: true 
   },
   marks: [
-    // Remplissage de la différence (Vert / Orange)
     Plot.differenceY(formattedData, {
-      x: "date",
+      x: "timeX",
       y1: "movieRelativePop",
       y2: "songRelativePop",
-      positiveFill: "rgba(44, 160, 44, 0.4)",
-      negativeFill: "rgba(255, 127, 14, 0.4)"
+      positiveFill: "rgba(255, 127, 14, 0.4)", // Musique gagne
+      negativeFill: "rgba(44, 160, 44, 0.4)"   // Film gagne
     }),
     
-    // Lignes principales
-    Plot.lineY(formattedData, { x: "date", y: "movieRelativePop", stroke: "#2ca02c", strokeWidth: 2 }),
-    Plot.lineY(formattedData, { x: "date", y: "songRelativePop", stroke: "#ff7f0e", strokeWidth: 2 }),
+    Plot.lineY(formattedData, { x: "timeX", y: "movieRelativePop", stroke: "#2ca02c", strokeWidth: 2 }),
+    Plot.lineY(formattedData, { x: "timeX", y: "songRelativePop", stroke: "#ff7f0e", strokeWidth: 2 }),
     
-    // Curseur interactif
+    // Ajout d'une ligne verticale à t=0 UNIQUEMENT pour la moyenne globale
+    ...(selectedMovieTitle === "Global Average" ? [
+      Plot.ruleX([0], { stroke: "black", strokeDasharray: "4,4", strokeWidth: 1.5 }),
+      Plot.text(["Release Date"], { x: 0, y: 100, textAnchor: "start", dx: 5, fill: "black", fontWeight: "bold" })
+    ] : []),
+
     Plot.ruleX(formattedData, Plot.pointerX({
-      x: "date", stroke: "gray", strokeWidth: 1, strokeDasharray: "4,4",
+      x: "timeX", stroke: "gray", strokeWidth: 1, strokeDasharray: "4,4",
       channels: {
         "Movie Rel. Pop. (%)": d => Math.round(d.movieRelativePop),
         "Song Rel. Pop. (%)": d => Math.round(d.songRelativePop)
@@ -388,7 +424,12 @@ soundtrack, with monthly search interest scores ranging from 0 to 100.</p>
 <p>Comparing raw search volumes between a global blockbuster and a single audio track introduces a mathematical bias, as the movie's massive volume visually flattens the music's data. To counteract this, a relative normalization was applied to each time series.</p>
 <p>Each data point was scaled to a 0 to 100 percent range relative to its own absolute maximum peak. This transformation allows us to study the pure dynamics (the cycles of hype and cultural decay) rather than incomparable absolute volumes.</p>
 <h3 id="global-average-mode" tabindex="-1"><a class="observablehq-header-anchor" href="#global-average-mode">Global Average Mode</a></h3>
-<p>To contextualize the data, users can select <strong>"Global Average"</strong> from the target selector. This aggregates all valid movies and soundtracks, calculates their mean curves, and dynamically normalizes them to a 100 percent scale to represent the definitive industry standard comparison between film and music longevity.</p>
+<p>To contextualize the data, users can select <strong>"Global Average"</strong> from the target selector. Because movies are released in different years, calculating an average based on absolute calendar dates is methodologically flawed. Instead, an "Event Study" approach was implemented:</p>
+<ul>
+<li>All movies and soundtracks are shifted and aligned to a common temporal point: <strong>t = 0 (The Release Month)</strong>.</li>
+<li>The X-axis dynamically transforms to display relative time, calculating the average normalized popularity from <strong>2 months before</strong> the release up to <strong>12 months after</strong>.</li>
+<li>This provides a true, standardized baseline of the industry's hype cycle and crossover dynamics.</li>
+</ul>
 <h3 id="visual-encoding-and-interactive-features" tabindex="-1"><a class="observablehq-header-anchor" href="#visual-encoding-and-interactive-features">Visual Encoding &amp; Interactive Features</a></h3>
 <ul>
 <li><strong>Geometric Marks:</strong> Continuous lines (Plot lineY) were selected for time-series data. The difference mark (Plot differenceY) fills the area between the two curves: green for movie dominance, orange for soundtrack dominance.</li>
@@ -396,8 +437,8 @@ soundtrack, with monthly search interest scores ranging from 0 to 100.</p>
 <li><strong>Hover Telemetry:</strong> The implementation of an interactive pointer generates a vertical tracking line equipped with a tooltip, providing an immediate readout of the exact relative percentages.</li>
 </ul>
 <div class="observablehq observablehq--block"><!--:19776a48:--></div>
-<div class="observablehq observablehq--block"><!--:6b831c96:--></div>
-<div class="observablehq observablehq--block"><observablehq-loading></observablehq-loading><!--:ce82d682:--></div>
+<div class="observablehq observablehq--block"><!--:82c0d8a9:--></div>
+<div class="observablehq observablehq--block"><observablehq-loading></observablehq-loading><!--:38ca83f0:--></div>
 <hr>
 <h2 id="graph-2-does-recent-movies-use-more-trendy-songs" tabindex="-1"><a class="observablehq-header-anchor" href="#graph-2-does-recent-movies-use-more-trendy-songs">Graph 2 — Does recent movies use more "trendy" songs?</a></h2>
 <h3 id="how-this-chart-was-built-1" tabindex="-1"><a class="observablehq-header-anchor" href="#how-this-chart-was-built-1">How this chart was built</a></h3>
@@ -451,7 +492,7 @@ the "overview first, details on demand" principle.</p>
 <div class="observablehq observablehq--block"><observablehq-loading></observablehq-loading><!--:8ff72456:--></div>
 </main>
 <footer id="observablehq-footer">
-<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-02-24T22:33:43">Feb 24, 2026</a>.</div>
+<div>Built with <a href="https://observablehq.com/" target="_blank" rel="noopener noreferrer">Observable</a> on <a title="2026-03-11T16:41:41">Mar 11, 2026</a>.</div>
 </footer>
 </div>
 </body>
